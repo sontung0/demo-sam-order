@@ -1,0 +1,117 @@
+{
+  "Comment": "Create new order",
+  "StartAt": "Validate order",
+  "States": {
+    "Validate order": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.product",
+              "IsString": true
+            },
+            {
+              "Variable": "$.quantity",
+              "IsNumeric": true
+            },
+            {
+              "Variable": "$.quantity",
+              "NumericGreaterThan": 0
+            },
+            {
+              "Variable": "$.amount",
+              "IsNumeric": true
+            },
+            {
+              "Variable": "$.amount",
+              "NumericGreaterThan": 0
+            }
+          ],
+          "Next": "Make order data"
+        }
+      ],
+      "Default": "Order invalid"
+    },
+    "Order invalid": {
+      "Type": "Fail",
+      "Error": "order_invalid",
+      "Cause": "Order invalid"
+    },
+    "Make order data": {
+      "Type": "Pass",
+      "Next": "Create order",
+      "Parameters": {
+        "id.$": "States.UUID()",
+        "product.$": "$.product",
+        "quantity.$": "$.quantity",
+        "amount.$": "$.amount",
+        "status": "new",
+        "created_at.$": "$$.Execution.StartTime"
+      }
+    },
+    "Create order": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${OrderTableName}",
+        "Item": {
+          "id": {
+            "S.$": "$.id"
+          },
+          "product": {
+            "S.$": "$.product"
+          },
+          "quantity": {
+            "N.$": "States.Format('{}', $.quantity)"
+          },
+          "amount": {
+            "N.$": "States.Format('{}', $.amount)"
+          },
+          "status": {
+            "S.$": "$.status"
+          },
+          "created_at": {
+            "S.$": "$.created_at"
+          }
+        }
+      },
+      "Next": "Put event",
+      "ResultPath": null,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Create order failed"
+        }
+      ]
+    },
+    "Put event": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Detail": {
+              "order.$": "$"
+            },
+            "DetailType": "order_created",
+            "EventBusName": "${EventBusName}",
+            "Source": "order_management"
+          }
+        ]
+      },
+      "Next": "Success",
+      "ResultPath": null
+    },
+    "Create order failed": {
+      "Type": "Fail",
+      "Error": "create_order_failed",
+      "Cause": "Create order failed"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

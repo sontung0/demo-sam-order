@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |-
+  test-sam-nodejs
+  Sample SAM Template for test-sam-nodejs
+
+Parameters:
+  JWTIssuerParameter:
+    Type: String
+  JWTAudienceParameter:
+    Type: String
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 300
+
+Resources:
+
+# Common services
+  # Api:
+  #   Type: AWS::Serverless::HttpApi
+  #   Properties:
+  #     AccessLogSettings:
+  #       DestinationArn: !GetAtt LogGroup.Arn
+  #       Format: |-
+  #         { "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength" }
+
+  EventBus:
+    Type: AWS::Events::EventBus
+    Properties: 
+      Name: !Ref AWS::StackName
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      RetentionInDays: 1
+
+# Order management service
+  OrderTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Sub "${AWS::StackName}_orders"
+      PrimaryKey:
+        Name: id
+        Type: String
+
+  CreateOrderStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-management/state-machines/create-order.asl.json
+      DefinitionSubstitutions:
+        OrderTableName: !Ref OrderTable
+        EventBusName: !Ref EventBus
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:  
+        - CloudWatchLogsFullAccess 
+        - DynamoDBWritePolicy:
+            TableName: !Ref OrderTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  # Api:
+  #   Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+  #   Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com"
+  OrderTable:
+    Description: "Order table"
+    Value: !Ref OrderTable
