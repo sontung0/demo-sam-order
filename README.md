@@ -1,5 +1,6 @@
 # Services
 
+```
 order_management
 	tables
 		orders
@@ -34,3 +35,4 @@ order_fulfillment
 			order: {}
 		order_out_of_stock
 			order: {}
+```
