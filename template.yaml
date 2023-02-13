@@ -99,6 +99,24 @@ Resources:
         - DynamoDBWritePolicy:
             TableName: !Ref OrderFulfillmentTable
 
+  FulfillOrderFulfillmentStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-fulfillment/state-machines/fulfill-order-fulfillment.asl.json
+      DefinitionSubstitutions:
+        OrderFulfillmentTableName: !Ref OrderFulfillmentTable
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:  
+        - CloudWatchLogsFullAccess 
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrderFulfillmentTable
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM

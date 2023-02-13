@@ -1,0 +1,98 @@
+{
+  "Comment": "Fulfill order fulfillment",
+  "StartAt": "Get order fulfillment detail",
+  "States": {
+    "Get order fulfillment detail": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:getItem",
+      "Parameters": {
+        "TableName": "${OrderFulfillmentTableName}",
+        "Key": {
+          "id": {
+            "S.$": "$.order_fulfillment_id"
+          }
+        }
+      },
+      "Next": "Can fulfill order fulfillment?",
+      "ResultSelector": {
+        "order_fulfillment": {
+          "id.$": "$.Item.id.S",
+          "order_id.$": "$.Item.order_id.S",
+          "product.$": "$.Item.product.S",
+          "quantity.$": "States.StringToJson($.Item.quantity.N)",
+          "status.$": "$.Item.status.S",
+          "created_at.$": "$.Item.created_at.S"
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Order fulfillment not found"
+        }
+      ]
+    },
+    "Order fulfillment not found": {
+      "Type": "Fail",
+      "Error": "order_fulfillment_not_found",
+      "Cause": "Order fulfillment not found"
+    },
+    "Can fulfill order fulfillment?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.order_fulfillment.status",
+          "StringEquals": "pending",
+          "Next": "Update order fulfillment"
+        }
+      ],
+      "Default": "Can't fulfill order fulfillment"
+    },
+    "Update order fulfillment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${OrderFulfillmentTableName}",
+        "Key": {
+          "id": {
+            "S.$": "$.order_fulfillment.id"
+          }
+        },
+        "UpdateExpression": "SET #status = :status",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S": "fulfilled"
+          }
+        },
+        "ReturnValues": "UPDATED_NEW"
+      },
+      "End": true,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Update order fulfillment failed"
+        }
+      ],
+      "ResultSelector": {
+        "status.$": "$.Attributes.status.S"
+      },
+      "ResultPath": "$.updated_order_fulfillment"
+    },
+    "Update order fulfillment failed": {
+      "Type": "Fail",
+      "Error": "update_order_fulfillment_failed",
+      "Cause": "Update order fulfillment failed"
+    },
+    "Can't fulfill order fulfillment": {
+      "Type": "Fail",
+      "Error": "cant_fulfill_order_fulfillment",
+      "Cause": "Can't fulfill order fulfillment"
+    }
+  }
+}

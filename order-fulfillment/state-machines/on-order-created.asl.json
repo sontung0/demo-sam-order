@@ -1,5 +1,5 @@
 {
-  "Comment": "Create order fullfilment when order created",
+  "Comment": "Create order fulfillment when order created",
   "StartAt": "Make order fulfillment data",
   "States": {
     "Make order fulfillment data": {
