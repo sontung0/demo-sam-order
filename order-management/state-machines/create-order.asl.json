@@ -42,12 +42,14 @@
       "Type": "Pass",
       "Next": "Create order",
       "Parameters": {
-        "id.$": "States.UUID()",
-        "product.$": "$.product",
-        "quantity.$": "$.quantity",
-        "amount.$": "$.amount",
-        "status": "new",
-        "created_at.$": "$$.Execution.StartTime"
+        "order": {
+          "id.$": "States.UUID()",
+          "product.$": "$.product",
+          "quantity.$": "$.quantity",
+          "amount.$": "$.amount",
+          "status": "new",
+          "created_at.$": "$$.Execution.StartTime"
+        }
       }
     },
     "Create order": {
@@ -57,22 +59,22 @@
         "TableName": "${OrderTableName}",
         "Item": {
           "id": {
-            "S.$": "$.id"
+            "S.$": "$.order.id"
           },
           "product": {
-            "S.$": "$.product"
+            "S.$": "$.order.product"
           },
           "quantity": {
-            "N.$": "States.Format('{}', $.quantity)"
+            "N.$": "States.Format('{}', $.order.quantity)"
           },
           "amount": {
-            "N.$": "States.Format('{}', $.amount)"
+            "N.$": "States.Format('{}', $.order.amount)"
           },
           "status": {
-            "S.$": "$.status"
+            "S.$": "$.order.status"
           },
           "created_at": {
-            "S.$": "$.created_at"
+            "S.$": "$.order.created_at"
           }
         }
       },
@@ -94,7 +96,7 @@
         "Entries": [
           {
             "Detail": {
-              "order.$": "$"
+              "order.$": "$.order"
             },
             "DetailType": "order_created",
             "EventBusName": "${EventBusName}",

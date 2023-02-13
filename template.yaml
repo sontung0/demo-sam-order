@@ -64,6 +64,41 @@ Resources:
         - EventBridgePutEventsPolicy:
             EventBusName: !Ref EventBus
 
+# Order fulfillment service
+  OrderFulfillmentTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Sub "${AWS::StackName}_order_fulfillments"
+      PrimaryKey:
+        Name: id
+        Type: String
+
+  OnOrderCreatedStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-fulfillment/state-machines/on-order-created.asl.json
+      DefinitionSubstitutions:
+        OrderFulfillmentTableName: !Ref OrderFulfillmentTable
+      Events:
+        OrderCreated:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref EventBus
+            Pattern:
+              source: ["order_management"]
+              detail-type: ["order_created"]
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:  
+        - CloudWatchLogsFullAccess 
+        - DynamoDBWritePolicy:
+            TableName: !Ref OrderFulfillmentTable
+
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM

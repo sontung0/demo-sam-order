@@ -1,0 +1,65 @@
+{
+  "Comment": "Create order fullfilment when order created",
+  "StartAt": "Make order fulfillment data",
+  "States": {
+    "Make order fulfillment data": {
+      "Type": "Pass",
+      "Next": "Create order fulfillment",
+      "Parameters": {
+        "order_fulfillment": {
+          "id.$": "States.UUID()",
+          "order_id.$": "$.detail.order.id",
+          "product.$": "$.detail.order.product",
+          "quantity.$": "$.detail.order.quantity",
+          "status": "pending",
+          "created_at.$": "$$.Execution.StartTime"
+        }
+      }
+    },
+    "Create order fulfillment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${OrderFulfillmentTableName}",
+        "Item": {
+          "id": {
+            "S.$": "$.order_fulfillment.id"
+          },
+          "order_id": {
+            "S.$": "$.order_fulfillment.order_id"
+          },
+          "product": {
+            "S.$": "$.order_fulfillment.product"
+          },
+          "quantity": {
+            "N.$": "States.Format('{}', $.order_fulfillment.quantity)"
+          },
+          "status": {
+            "S.$": "$.order_fulfillment.status"
+          },
+          "created_at": {
+            "S.$": "$.order_fulfillment.created_at"
+          }
+        }
+      },
+      "Next": "Success",
+      "ResultPath": null,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Create order fulfillment failed"
+        }
+      ]
+    },
+    "Create order fulfillment failed": {
+      "Type": "Fail",
+      "Error": "create_order_fulfillment_failed",
+      "Cause": "Create order fulfillment failed"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

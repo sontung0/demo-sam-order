@@ -26,6 +26,7 @@ order_fulfillment
 	tables
 		order_fulfillments
 			id
+			order_id
 			product
 			quantity
 			status: pending, fulfilled, out_of_stock
