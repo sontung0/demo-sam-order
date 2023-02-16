@@ -32,8 +32,28 @@ order_fulfillment
 			status: pending, fulfilled, out_of_stock
 			created_at
 	events
-		order_fulfilled
+		order_fulfillment_fulfilled
 			order: {}
-		order_out_of_stock
+		order_fulfillment_out_of_stock
 			order: {}
+```
+
+# Test payload
+
+```
+{
+  "product": "iphone",
+  "quantity": 3,
+  "amount": 3000
+}
+
+{
+  "order_fulfillment_id": "xxx",
+  "status": "fulfilled"
+}
+
+{
+  "order_fulfillment_id": "xxx",
+  "status": "out_of_stock"
+}
 ```

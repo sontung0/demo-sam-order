@@ -1,0 +1,46 @@
+{
+  "Comment": "Listen event order_fulfillment_out_of_stock",
+  "StartAt": "Cancel order",
+  "States": {
+    "Cancel order": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${OrderTableName}",
+        "Key": {
+          "id": {
+            "S.$": "$.detail.order_fulfillment.order_id"
+          }
+        },
+        "UpdateExpression": "SET #status = :status",
+        "ConditionExpression": "attribute_exists(id) AND #status = :prev_status",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S": "canceled"
+          },
+          ":prev_status": {
+            "S": "new"
+          }
+        },
+        "ReturnValues": "ALL_NEW"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Update order failed"
+        }
+      ],
+      "End": true
+    },
+    "Update order failed": {
+      "Type": "Fail",
+      "Error": "update_order_failed",
+      "Cause": "Update order failed"
+    }
+  }
+}

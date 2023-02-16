@@ -43,7 +43,7 @@ Resources:
         Name: id
         Type: String
 
-  CreateOrderStateMachine:
+  CreateOrderSM:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: order-management/state-machines/create-order.asl.json
@@ -64,6 +64,58 @@ Resources:
         - EventBridgePutEventsPolicy:
             EventBusName: !Ref EventBus
 
+  OnOrderFulfillmentFulfilledSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-management/state-machines/on-order-management-fulfilled.asl.json
+      DefinitionSubstitutions:
+        OrderTableName: !Ref OrderTable
+      Events:
+        EBRule:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref EventBus
+            Pattern:
+              source: ["order_fulfillment"]
+              detail-type: ["order_fulfillment_fulfilled"]
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:  
+        - CloudWatchLogsFullAccess 
+        - DynamoDBWritePolicy:
+            TableName: !Ref OrderTable
+
+  OnOrderFulfillmentOutOfStockSM:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: order-management/state-machines/on-order-management-out-of-stock.asl.json
+      DefinitionSubstitutions:
+        OrderTableName: !Ref OrderTable
+      Events:
+        EBRule:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref EventBus
+            Pattern:
+              source: ["order_fulfillment"]
+              detail-type: ["order_fulfillment_out_of_stock"]
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup: 
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      Policies:  
+        - CloudWatchLogsFullAccess 
+        - DynamoDBWritePolicy:
+            TableName: !Ref OrderTable
+
 # Order fulfillment service
   OrderFulfillmentTable:
     Type: AWS::Serverless::SimpleTable
@@ -73,14 +125,14 @@ Resources:
         Name: id
         Type: String
 
-  OnOrderCreatedStateMachine:
+  OnOrderCreatedSM:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: order-fulfillment/state-machines/on-order-created.asl.json
       DefinitionSubstitutions:
         OrderFulfillmentTableName: !Ref OrderFulfillmentTable
       Events:
-        OrderCreated:
+        EBRule:
           Type: EventBridgeRule
           Properties:
             EventBusName: !Ref EventBus
@@ -99,16 +151,17 @@ Resources:
         - DynamoDBWritePolicy:
             TableName: !Ref OrderFulfillmentTable
 
-  FulfillOrderFulfillmentStateMachine:
+  ChangeOrderFulfillmentStatusSM:
     Type: AWS::Serverless::StateMachine
     Properties:
-      DefinitionUri: order-fulfillment/state-machines/fulfill-order-fulfillment.asl.json
+      DefinitionUri: order-fulfillment/state-machines/change-order-fulfillment-status.asl.json
       DefinitionSubstitutions:
         OrderFulfillmentTableName: !Ref OrderFulfillmentTable
+        EventBusName: !Ref EventBus
       Type: EXPRESS
       Logging:
         Destinations:
-          - CloudWatchLogsLogGroup: 
+          - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt LogGroup.Arn
         IncludeExecutionData: true
         Level: ALL
@@ -116,6 +169,8 @@ Resources:
         - CloudWatchLogsFullAccess 
         - DynamoDBCrudPolicy:
             TableName: !Ref OrderFulfillmentTable
+        - EventBridgePutEventsPolicy:
+            EventBusName: !Ref EventBus
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function

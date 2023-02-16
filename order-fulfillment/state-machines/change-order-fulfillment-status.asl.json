@@ -1,0 +1,101 @@
+{
+  "Comment": "Change order fulfillment status",
+  "StartAt": "Validate input",
+  "States": {
+    "Validate input": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.order_fulfillment_id",
+              "IsString": true
+            },
+            {
+              "Or": [
+                {
+                  "Variable": "$.status",
+                  "StringEquals": "fulfilled"
+                },
+                {
+                  "Variable": "$.status",
+                  "StringEquals": "out_of_stock"
+                }
+              ]
+            }
+          ],
+          "Next": "Change status"
+        }
+      ],
+      "Default": "Change status failed"
+    },
+    "Change status": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${OrderFulfillmentTableName}",
+        "Key": {
+          "id": {
+            "S.$": "$.order_fulfillment_id"
+          }
+        },
+        "UpdateExpression": "SET #status = :status",
+        "ConditionExpression": "attribute_exists(id) AND #status = :prev_status",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S.$": "$.status"
+          },
+          ":prev_status": {
+            "S": "pending"
+          }
+        },
+        "ReturnValues": "ALL_NEW"
+      },
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "Change status failed"
+        }
+      ],
+      "ResultSelector": {
+        "order_fulfillment": {
+          "id.$": "$.Attributes.id.S",
+          "order_id.$": "$.Attributes.order_id.S",
+          "product.$": "$.Attributes.product.S",
+          "quantity.$": "States.StringToJson($.Attributes.quantity.N)",
+          "status.$": "$.Attributes.status.S",
+          "created_at.$": "$.Attributes.created_at.S"
+        }
+      },
+      "Next": "Put event"
+    },
+    "Put event": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Detail": {
+              "order_fulfillment.$": "$.order_fulfillment"
+            },
+            "DetailType.$": "States.Format('order_fulfillment_{}', $.order_fulfillment.status)",
+            "EventBusName": "${EventBusName}",
+            "Source": "order_fulfillment"
+          }
+        ]
+      },
+      "End": true,
+      "ResultPath": null
+    },
+    "Change status failed": {
+      "Type": "Fail",
+      "Error": "change_status_failed",
+      "Cause": "Change status failed"
+    }
+  }
+}
